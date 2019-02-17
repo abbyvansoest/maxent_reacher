@@ -1,3 +1,7 @@
+# TODO: reacher should explore the theta/velocity of each joint angle (produce charts for each, eventually)
+# TODO: cap speed/torque of the model somehow 0 -- getting into really fast spin loops
+    # create xml file with "limited" joints
+
 import gym
 import time
 import numpy as np
@@ -37,7 +41,10 @@ def get_state(env, obs):
         print(svec)
         raise ValueError("state and observation are not equal")
 
-    state = np.concatenate([env.env.get_body_com("fingertip"), 
+    # state = [f1 f2 f3 theta1 theta2 vel1 vel2]
+    # joint0 = [3, 5]
+    # joint1 = [4, 6]
+    state = np.concatenate([env.env.get_body_com("fingertip")[:2], 
         np.radians(deg), 
         svec[4:6]])
 
@@ -92,15 +99,16 @@ def get_state_bins():
     # Bins for fingertip
     state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins))
     state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins))
-    state_bins.append(discretize_range(-100, 100, 2)) # TODO: remove from state
 
     # position - angular, between 0, 2pi
-    state_bins.append(discretize_range(0, 2*np.pi, 10))
-    state_bins.append(discretize_range(0, 2*np.pi, 10))
+#     state_bins.append(discretize_range(0, 2*np.pi, 10))
+#     state_bins.append(discretize_range(0, 2*np.pi, 10))
+    state_bins.append(discretize_range(-10, 10, 10))
+    state_bins.append(discretize_range(-10, 10, 10))
 
     # velocity
-    state_bins.append(discretize_range(-8, 8, 10))
-    state_bins.append(discretize_range(-8, 8, 10))
+    state_bins.append(discretize_range(-25, 25, 15))
+    state_bins.append(discretize_range(-25, 25, 15))
 
     return state_bins
 
@@ -115,8 +123,12 @@ def get_state_bins_reduced():
 
 def get_state_bins_2d_state():
     state_bins = []
-    for i in range(start, stop):
-        state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins_2d))
+    # theta
+    state_bins.append(discretize_range(0, 2*np.pi, 15))
+    # velocity
+    state_bins.append(discretize_range(-10, 10, 15))
+#     state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins_2d))
+#     state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins_2d))
     return state_bins
 
 def get_num_states(state_bins):
@@ -136,12 +148,20 @@ state_bins_2d = get_state_bins_2d_state()
 num_states_2d = tuple([num_bins_2d for i in range(start, stop)])
 
 # Discretize the observation features and reduce them to a single list.
-def discretize_state_2d(observation, norm=[]):
+def discretize_state_2d_idx(observation, idx1, idx2, norm=[]):
     state = []
-    for i in range(start, stop):
-        feature = observation[i]
-        state.append(discretize_value(feature, state_bins_2d[i - start]))
+    state.append(discretize_value(observation[idx1], state_bins_2d[0]))
+    state.append(discretize_value(observation[idx2], state_bins_2d[1]))
     return state
+
+# Discretize the observation features and reduce them to a single list.
+def discretize_state_2d(observation, norm=[]):
+    return discretize_state_2d_idx(observation, 3, 5, norm)
+#     state = []
+#     for i in range(start, stop):
+#         feature = observation[i]
+#         state.append(discretize_value(feature, state_bins_2d[i - start]))
+#     return state
 
 def discretize_state_normal(observation):
     state = []
@@ -170,7 +190,6 @@ def discretize_state(observation, norm=[]):
         state = discretize_state_reduced(observation, norm)
     else:
         state = discretize_state_normal(observation)
-
     return state
 
 def get_height_dimension(arr):

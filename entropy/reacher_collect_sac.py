@@ -16,7 +16,6 @@ from tabulate import tabulate
 import sys 
 
 import gym
-from gym.spaces import prng
 import tensorflow as tf
 from math import log, e
 
@@ -426,10 +425,10 @@ def collect_entropy_policies(env, epochs, T, MODEL_DIR=''):
         plotting.heatmap(running_avg_p_xy, average_p_xy, i)
         plotting.heatmap1(running_avg_p_baseline_xy, i)
         
-        if i == states_visited_indexes[3]:
-             plotting.states_visited_over_time_multi(states_visited_cumulative, 
-                                                     states_visited_cumulative_baseline, 
-                                                     states_visited_indexes)
+#         if i == states_visited_indexes[3]:
+#              plotting.states_visited_over_time_multi(states_visited_cumulative, 
+#                                                      states_visited_cumulative_baseline, 
+#                                                      states_visited_indexes)
         
     # cumulative plots.
     plotting.heatmap4(running_avg_ps_xy, running_avg_ps_baseline_xy, indexes, ext="cumulative")
@@ -449,7 +448,6 @@ def main():
     # Make environment.
     env = gym.make(args.env)
     env.seed(int(time.time())) # seed environment
-    prng.seed(int(time.time())) # seed action space
     
     TIME = datetime.now().strftime('%Y_%m_%d-%H-%M')
     plotting.FIG_DIR = 'figs/' + args.env + '/'
