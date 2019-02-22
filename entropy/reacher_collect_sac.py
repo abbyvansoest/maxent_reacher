@@ -6,7 +6,7 @@
 # TODO: make sure graph is being reset? Or not?
 
 import sys
-sys.path.append('/home/abby/autoencoder')
+sys.path.append('/home/abby')
 
 import os
 import time
@@ -24,8 +24,8 @@ import reacher_utils
 import plotting
 from reacher_soft_actor_critic import ReacherSoftActorCritic
 from experience_buffer import ExperienceBuffer
-# from autoencoder import Autoencoder
-from autoencoder import ContractiveAutoencoder
+# from autoencoder.sparse import SparseAutoencoder
+from autoencoder.contractive import ContractiveAutoencoder
 
 args = utils.get_args()
 
