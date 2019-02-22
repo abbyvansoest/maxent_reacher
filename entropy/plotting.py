@@ -1,18 +1,8 @@
 import os
-
 import numpy as np
-import scipy.stats
-from scipy.interpolate import interp2d
-from scipy.interpolate import spline
-from scipy.stats import norm
-from scipy.optimize import curve_fit
-
 import matplotlib
 matplotlib.use('Agg') # matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.collections import LineCollection
 
 import utils
 import reacher_utils

@@ -3,9 +3,7 @@
     # create xml file with "limited" joints
 
 import gym
-import time
 import numpy as np
-
 import utils
 args = utils.get_args()
 
@@ -65,6 +63,7 @@ def get_state(env, obs):
 
 o = env.reset()
 state_dim = len(get_state(env, o))
+env_state_dim = int(len(o))
 action_dim = int(env.action_space.sample().shape[0])
 
 min_bin = -1
@@ -93,10 +92,12 @@ G = np.transpose(np.random.normal(0, 1, (state_dim - len(special), reduce_dim)))
 total_state_space = num_bins_2d*num_bins_2d* (num_bins**reduce_dim)
 
 print("total_state_space = %d" % total_state_space)
-print("expected_state_dim = %d" % expected_state_dim)
+print("gaussian_state_dim = %d" % expected_state_dim)
 print("action_dim = %d" % action_dim)
 
 def convert_obs(observation):
+    if not args.gaussian:
+        return observation
     new_obs = []
     for i in special:
         new_obs.append(observation[i])

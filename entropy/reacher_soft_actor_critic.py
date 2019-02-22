@@ -2,16 +2,11 @@
 
 import numpy as np
 import tensorflow as tf
-import gym
-import time
-# from spinup.algos.sac import core
-# from spinup.algos.sac.core import get_vars
 import core
 from core import get_vars
 from spinup.utils.logx import EpochLogger
 
 import reacher_utils
-from experience_buffer import ExperienceBuffer
 
 class ReplayBuffer:
     """
@@ -268,7 +263,6 @@ class ReacherSoftActorCritic:
             self.logger.setup_tf_saver(self.sess, inputs={'x': self.x_ph, 'a': self.a_ph}, 
                                         outputs={'mu': self.mu, 'pi': self.pi, 'q1': self.q1, 'q2': self.q2, 'v': self.v})
 
-            start_time = time.time()
             o, r, d, ep_ret, ep_len = self.env.reset(), 0, False, 0, 0
             if len(initial_state) > 0:
                 qpos = initial_state[:len(reacher_utils.qpos)]
@@ -376,33 +370,33 @@ class ReacherSoftActorCritic:
                     self.logger.dump_tabular()
 
 
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='HalfCheetah-v2')
-    parser.add_argument('--hid', type=int, default=300)
-    parser.add_argument('--l', type=int, default=1)
-    parser.add_argument('--gamma', type=float, default=0.99)
-    parser.add_argument('--seed', '-s', type=int, default=0)
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--exp_name', type=str, default='sac')
-    args = parser.parse_args()
+# if __name__ == '__main__':
+#     import argparse
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--env', type=str, default='HalfCheetah-v2')
+#     parser.add_argument('--hid', type=int, default=300)
+#     parser.add_argument('--l', type=int, default=1)
+#     parser.add_argument('--gamma', type=float, default=0.99)
+#     parser.add_argument('--seed', '-s', type=int, default=0)
+#     parser.add_argument('--epochs', type=int, default=50)
+#     parser.add_argument('--exp_name', type=str, default='sac')
+#     args = parser.parse_args()
 
-    from spinup.utils.run_utils import setup_logger_kwargs
-    logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
+#     from spinup.utils.run_utils import setup_logger_kwargs
+#     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
-    sac1 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
-        actor_critic=core.mlp_actor_critic, 
-        seed=args.seed, gamma=args.gamma, 
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
-        logger_kwargs=logger_kwargs)
-    sac1.soft_actor_critic(epochs=args.epochs)
+#     sac1 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
+#         actor_critic=core.mlp_actor_critic, 
+#         seed=args.seed, gamma=args.gamma, 
+#         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
+#         logger_kwargs=logger_kwargs)
+#     sac1.soft_actor_critic(epochs=args.epochs)
 
-    print("---------- SAC 2 ---------")
+#     print("---------- SAC 2 ---------")
 
-    sac2 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
-        actor_critic=core.mlp_actor_critic, 
-        seed=args.seed, gamma=args.gamma, 
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
-        logger_kwargs=logger_kwargs)
-    sac2.soft_actor_critic(epochs=args.epochs)
+#     sac2 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
+#         actor_critic=core.mlp_actor_critic, 
+#         seed=args.seed, gamma=args.gamma, 
+#         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
+#         logger_kwargs=logger_kwargs)
+#     sac2.soft_actor_critic(epochs=args.epochs)

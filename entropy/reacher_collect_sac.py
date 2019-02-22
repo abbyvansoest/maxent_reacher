@@ -2,19 +2,17 @@
 
 # python reacher_collect_sac.py --env="Reacher-v2" --T=1000 --episodes=100 --epochs=10 
 
-# import sys
-# sys.path.append('/home/abby')
+# TODO: normalize obs for autoencoder
+# TODO: make sure graph is being reset? Or not?
+
+import sys
+sys.path.append('/home/abby/autoencoder')
 
 import os
 import time
-from datetime import datetime
 
 import random
 import numpy as np
-import scipy.stats
-from scipy.interpolate import interp2d
-from scipy.interpolate import spline
-from scipy.stats import norm
 from tabulate import tabulate
 
 import gym
@@ -27,6 +25,7 @@ import plotting
 from reacher_soft_actor_critic import ReacherSoftActorCritic
 from experience_buffer import ExperienceBuffer
 # from autoencoder import Autoencoder
+from autoencoder import ContractiveAutoencoder
 
 args = utils.get_args()
 
@@ -82,6 +81,34 @@ def compute_states_visited_xy(env, policies, T, n, N=20, initial_state=[], basel
     return states_visited_xy
 
 # run a simulation to see how the average policy behaves.
+def collect_avg_obs(env, policies, T, n=10):
+    data = []
+    max_idx = len(policies) - 1
+    
+    for iteration in range(n):        
+        env.reset()
+        obs = reacher_utils.get_state(env, env.env._get_obs())
+       
+        for t in range(T):
+            
+            action = np.zeros(shape=(1,reacher_utils.action_dim))
+            
+            # select random policy uniform distribution
+            # take non-deterministic action for that policy
+            idx = random.randint(0, max_idx)
+            if idx ==0:
+                action = env.action_space.sample()
+            else:
+                action = policies[idx].get_action(obs, deterministic=args.deterministic)
+                
+            # Count the cumulative number of new states visited as a function of t.
+            obs, _, done, _ = env.step(action)
+            data.append(obs)
+            obs = reacher_utils.get_state(env, obs)
+    
+    return data
+
+# run a simulation to see how the average policy behaves.
 def execute_average_policy(env, policies, T, reward_fn=[], norm=[], initial_state=[], n=10, render=False, epoch=0):
     
     p = np.zeros(shape=(tuple(reacher_utils.num_states)))
@@ -105,12 +132,6 @@ def execute_average_policy(env, policies, T, reward_fn=[], norm=[], initial_stat
     for iteration in range(n):
         
         env.reset()
-        
-        # TODO: when testing, do not want initial state.
-        if len(initial_state) > 0:
-            qpos = initial_state[:len(reacher_utils.qpos)]
-            qvel = initial_state[len(reacher_utils.qpos):]
-            env.env.set_state(qpos, qvel)
 
         obs = reacher_utils.get_state(env, env.env._get_obs())
 
@@ -145,6 +166,7 @@ def execute_average_policy(env, policies, T, reward_fn=[], norm=[], initial_stat
             # Count the cumulative number of new states visited as a function of t.
             obs, _, done, _ = env.step(action)
             obs = reacher_utils.get_state(env, obs)
+            
             reward = reward_fn[tuple(reacher_utils.discretize_state(obs, norm))]
             rewards[t] += reward
 
@@ -219,6 +241,9 @@ def collect_entropy_policies(env, epochs, T, MODEL_DIR=''):
     
     indexes = [1,5,10,15]
     states_visited_indexes = [0,5,10,15]
+    
+#     indexes = [0,1,2,3]
+#     states_visited_indexes = [0,1,2,3]
     
     states_visited_cumulative = []
     states_visited_cumulative_baseline = []
@@ -313,7 +338,6 @@ def collect_entropy_policies(env, epochs, T, MODEL_DIR=''):
             logger_kwargs=logger_kwargs, 
             normalization_factors=normalization_factors,
             learn_reduced=args.learn_reduced)
-        # TODO: start learning from initial state to add gradient?
         # The first policy is random
         if i == 0:
             sac.soft_actor_critic(epochs=0) 
@@ -328,14 +352,17 @@ def collect_entropy_policies(env, epochs, T, MODEL_DIR=''):
         print("Executing mixed policy...")
         average_p, average_p_joint0, average_p_joint1, initial_state, \
         states_visited, states_visited_joint0, states_visited_joint1 = \
-            execute_average_policy(env, policies, T, 
+            execute_average_policy(env, policies, T,
                                    reward_fn=reward_fn, norm=normalization_factors, 
                                    initial_state=initial_state, n=args.n, 
                                    render=False, epoch=i)
-        print(np.sum(average_p))
-        print(np.sum(average_p_joint0))
-        print(np.sum(average_p_joint1))
-        
+
+        print("Learning autoencoding....")
+        autoencoder = ContractiveAutoencoder(reacher_utils.env_state_dim, reduce_dim=4)
+        autoencoder.set_data(collect_avg_obs(env, policies, T, n=500))
+        autoencoder.set_test_data(collect_avg_obs(env, policies, T, n=50))
+        autoencoder.train()
+
         print("Calculating maxEnt entropy...")
         round_entropy = entropy(average_p.ravel())
         round_entropy_joint0 = entropy(average_p_joint0.ravel())
@@ -379,18 +406,6 @@ def collect_entropy_policies(env, epochs, T, MODEL_DIR=''):
         p_baseline, p_baseline_joint0, p_baseline_joint1, \
         states_visited_baseline, states_visited_joint0_baseline, \
         states_visited_joint1_baseline = sac.test_agent_random(T, normalization_factors=normalization_factors, n=args.n)
-        
-        print(np.sum(p_baseline))
-        print(np.sum(p_baseline_joint0))
-        print(np.sum(p_baseline_joint1))
-        
-        print('Random visits same # states....')
-        print(len(states_visited))
-        print(len(states_visited_baseline))
-        print(len(states_visited_joint0))
-        print(len(states_visited_joint0_baseline))
-        print(len(states_visited_joint1))
-        print(len(states_visited_joint1_baseline))
         
         plotting.states_visited_over_time(states_visited, states_visited_baseline, i)
         plotting.states_visited_over_time(states_visited_joint0, states_visited_joint0_baseline, i, ext='_joint0')
@@ -516,7 +531,6 @@ def main():
     env = gym.make(args.env)
     env.seed(int(time.time())) # seed environment
     
-    TIME = datetime.now().strftime('%Y_%m_%d-%H-%M')
     plotting.FIG_DIR = 'figs/' + args.env + '/'
     plotting.model_time = args.exp_name + '/'
     if not os.path.exists(plotting.FIG_DIR+plotting.model_time):

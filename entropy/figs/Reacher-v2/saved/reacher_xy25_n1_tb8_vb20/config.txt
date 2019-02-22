@@ -1,1 +1,0 @@
-python reacher_collect_sac.py --env="Reacher-v2" --T=50 --episodes=20 --epochs=16 --n=1 --exp_name=reacher_xy25_n1_tb8_vb20 --start_steps=15000
