@@ -279,10 +279,10 @@ def collect_entropy_policies(env, epochs, T, MODEL_DIR=''):
         if args.seed != -1:
             seed = args.seed
         else:
-            seed = random.randint(1, 100000)
+            seed = int(time.time())
         
         sac = ReacherSoftActorCritic(lambda : gym.make(args.env), reward_fn=reward_fn, xid=i+1,
-            seed=seed, gamma=args.gamma, 
+            seed=seed, gamma=args.gamma, max_ep_len=T,
             ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
             logger_kwargs=logger_kwargs, 
             normalization_factors=normalization_factors,

@@ -44,11 +44,6 @@ class ReplayBuffer:
                     rews=self.rews_buf[idxs],
                     done=self.done_buf[idxs])
 
-"""
-
-Soft Actor-Critic (With slight variations that bring it closer to TD3)
-
-"""
 
 class ReacherSoftActorCritic:
 
@@ -190,7 +185,13 @@ class ReacherSoftActorCritic:
                 a = self.get_action(o, deterministic)
                 o, r, d, _ = self.test_env.step(a)
                 o = reacher_utils.get_state(self.test_env, o)
-                
+                # self.test_env.render()
+                # time.sleep(1)
+
+                # print("-------")
+                # print(a)
+                # print(o)
+
 #                 tup = tuple(reacher_utils.discretize_state(o, self.normalization_factors))
 #                 p[tup] += 1
 #                 tup_xy = tuple(reacher_utils.discretize_state_2d(o, self.normalization_factors))
@@ -202,7 +203,6 @@ class ReacherSoftActorCritic:
                 denom += 1
                 
                 if d and reset:
-#                     self.test_env.reset()
                     d = False
 
             if store_log:
@@ -304,10 +304,8 @@ class ReacherSoftActorCritic:
                 o2 = reacher_utils.get_state(self.env, o2)
                 r = self.reward(self.env, r, o2)
 
-                # print("-------")
-                # print(o)
-                # print(a)
-                # print(o2)
+                # TODO: cap velocity.
+                # TODO: something with the way I am converting range of theta to circular?
                 
                 ep_ret += r
                 ep_len += 1
