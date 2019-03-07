@@ -17,6 +17,13 @@ class ExperienceBuffer:
         # TODO: check dimension of obs: should be dimension of ant env.env.state_vector()
         self.buffer.append(reacher_utils.convert_obs(state))
     
+    def reset(self):
+        self.buffer = []
+        self.normalization_factors = []
+        self.normalized = False
+        self.p = None
+        self.p_2d = None
+    
     def normalize(self):
         # for each index in reduced dimension,
         # find the largest value in self.buffer

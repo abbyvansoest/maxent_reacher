@@ -1,18 +1,8 @@
 import os
-
 import numpy as np
-import scipy.stats
-from scipy.interpolate import interp2d
-from scipy.interpolate import spline
-from scipy.stats import norm
-from scipy.optimize import curve_fit
-
 import matplotlib
 matplotlib.use('Agg') # matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.collections import LineCollection
 
 import utils
 import reacher_utils
@@ -64,7 +54,7 @@ def heatmap1(avg_p, i, directory='baseline'):
     plt.savefig(fname)
     plt.close()
 
-def heatmap(running_avg_p, avg_p, i):
+def heatmap(running_avg_p, avg_p, i, directory=''):
     # Create running average heatmap.
     plt.figure()
     min_value = np.min(np.ma.log(running_avg_p))
@@ -88,7 +78,7 @@ def heatmap(running_avg_p, avg_p, i):
         plt.ylabel(reacher_utils.dim_dict[reacher_utils.start+1])
         
     # plt.title("Policy distribution at step %d" % i)
-    running_avg_heatmap_dir = FIG_DIR + model_time + 'running_avg/'
+    running_avg_heatmap_dir = FIG_DIR + model_time + directory + 'running_avg/'
     if not os.path.exists(running_avg_heatmap_dir):
         os.makedirs(running_avg_heatmap_dir)
     fname = running_avg_heatmap_dir + "heatmap_%02d.png" % i
@@ -116,7 +106,7 @@ def heatmap(running_avg_p, avg_p, i):
         plt.ylabel(reacher_utils.dim_dict[reacher_utils.start+1])
 
     # plt.title("Policy distribution at step %d" % i)
-    avg_heatmap_dir = FIG_DIR + model_time + 'avg/'
+    avg_heatmap_dir = FIG_DIR + model_time + directory + 'avg/'
     if not os.path.exists(avg_heatmap_dir):
         os.makedirs(avg_heatmap_dir)
     fname = avg_heatmap_dir + "heatmap_%02d.png" % i

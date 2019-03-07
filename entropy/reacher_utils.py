@@ -3,9 +3,7 @@
     # create xml file with "limited" joints
 
 import gym
-import time
 import numpy as np
-
 import utils
 args = utils.get_args()
 
@@ -19,6 +17,12 @@ dim_dict = {
 
 qpos = env.env.init_qpos
 qvel = env.env.init_qvel
+
+joint0th = 0
+joint0v = 2
+
+joint1th = 1
+joint1v = 3
 
 def get_state(env, obs):
     svec = env.env.state_vector()
@@ -42,17 +46,24 @@ def get_state(env, obs):
         raise ValueError("state and observation are not equal")
 
     # state = [f1 f2 f3 theta1 theta2 vel1 vel2]
-    # joint0 = [3, 5]
-    # joint1 = [4, 6]
-    state = np.concatenate([env.env.get_body_com("fingertip")[:2], 
-        np.radians(deg), 
+    state = np.concatenate([
+        svec[0:2], 
         svec[4:6]])
-
-    # print(state)
+    if args.wrap:
+        state = np.concatenate([
+            np.radians(deg), 
+            svec[4:6]])
+    
+    if args.fingertip:
+        state = np.concatenate([state, env.env.get_body_com("fingertip")[:2]])
+#     print("----")
+#     print(svec)
+#     print(state)
     return state
 
 o = env.reset()
 state_dim = len(get_state(env, o))
+env_state_dim = int(len(o))
 action_dim = int(env.action_space.sample().shape[0])
 
 min_bin = -1
@@ -68,6 +79,12 @@ min_bin_2d = -.27
 max_bin_2d = .27
 num_bins_2d = 15
 
+theta_bin = 30
+vel_bin = 30
+if args.wrap:
+    theta_bin = 16
+    vel_bin = 30
+
 reduce_dim = args.reduce_dim
 expected_state_dim = len(special) + reduce_dim
 G = np.transpose(np.random.normal(0, 1, (state_dim - len(special), reduce_dim)))
@@ -75,10 +92,12 @@ G = np.transpose(np.random.normal(0, 1, (state_dim - len(special), reduce_dim)))
 total_state_space = num_bins_2d*num_bins_2d* (num_bins**reduce_dim)
 
 print("total_state_space = %d" % total_state_space)
-print("expected_state_dim = %d" % expected_state_dim)
+print("gaussian_state_dim = %d" % expected_state_dim)
 print("action_dim = %d" % action_dim)
 
 def convert_obs(observation):
+    if not args.gaussian:
+        return observation
     new_obs = []
     for i in special:
         new_obs.append(observation[i])
@@ -96,19 +115,22 @@ def discretize_value(value, bins):
 def get_state_bins():
     state_bins = []
 
-    # Bins for fingertip
-    state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins))
-    state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins))
-
-    # position - angular, between 0, 2pi
-#     state_bins.append(discretize_range(0, 2*np.pi, 10))
-#     state_bins.append(discretize_range(0, 2*np.pi, 10))
-    state_bins.append(discretize_range(-10, 10, 10))
-    state_bins.append(discretize_range(-10, 10, 10))
-
+    # position - angular
+    if args.wrap:
+        state_bins.append(discretize_range(0, 2*np.pi, 6))
+        state_bins.append(discretize_range(0, 2*np.pi, 6))
+    else:
+        state_bins.append(discretize_range(-10, 10, 15))
+        state_bins.append(discretize_range(-10, 10, 15))
+        
     # velocity
-    state_bins.append(discretize_range(-25, 25, 15))
-    state_bins.append(discretize_range(-25, 25, 15))
+    state_bins.append(discretize_range(-30, 30, 15))
+    state_bins.append(discretize_range(-30, 30, 15))
+    
+    # Bins for fingertip
+    if args.fingertip:
+        state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins))
+        state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins))
 
     return state_bins
 
@@ -124,11 +146,12 @@ def get_state_bins_reduced():
 def get_state_bins_2d_state():
     state_bins = []
     # theta
-    state_bins.append(discretize_range(0, 2*np.pi, 15))
+    if args.wrap:
+        state_bins.append(discretize_range(0, 2*np.pi, theta_bin))
+    else:
+        state_bins.append(discretize_range(-20, 20, theta_bin))
     # velocity
-    state_bins.append(discretize_range(-10, 10, 15))
-#     state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins_2d))
-#     state_bins.append(discretize_range(min_bin_2d, max_bin_2d, num_bins_2d))
+    state_bins.append(discretize_range(-50, 50, vel_bin))
     return state_bins
 
 def get_num_states(state_bins):
@@ -145,7 +168,7 @@ else:
 num_states = get_num_states(state_bins)
 
 state_bins_2d = get_state_bins_2d_state()
-num_states_2d = tuple([num_bins_2d for i in range(start, stop)])
+num_states_2d = tuple([theta_bin, vel_bin])
 
 # Discretize the observation features and reduce them to a single list.
 def discretize_state_2d_idx(observation, idx1, idx2, norm=[]):
@@ -155,8 +178,8 @@ def discretize_state_2d_idx(observation, idx1, idx2, norm=[]):
     return state
 
 # Discretize the observation features and reduce them to a single list.
-def discretize_state_2d(observation, norm=[]):
-    return discretize_state_2d_idx(observation, 3, 5, norm)
+def discretize_state_2d(observation, idx1=3, idx2=5, norm=[]):
+    return discretize_state_2d_idx(observation, idx1, idx2, norm)
 #     state = []
 #     for i in range(start, stop):
 #         feature = observation[i]

@@ -1,7 +1,5 @@
-import numpy as np
 import argparse
 import copy
-import sys
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
 
@@ -19,7 +17,7 @@ parser.add_argument('--T', type=int, default=1000, metavar='T',
                     help='number of steps to roll out entropy policy')
 parser.add_argument('--n', type=int, default=10, metavar='n',
                     help='number of rollouts to average over')
-parser.add_argument('--env', type=str, default='fake', metavar='env',
+parser.add_argument('--env', type=str, default='Reacher-v2', metavar='env',
                     help='the env to learn')
 
 parser.add_argument('--models_dir', type=str, default='logs/file.out', metavar='N',
@@ -56,6 +54,11 @@ parser.add_argument('--start_steps', type=int, default=10000, metavar='ss',
                     help='start steps parameter')
 parser.add_argument('--initial_state', action='store_true',
                     help='seed learning policies with initial state')
+
+parser.add_argument('--wrap', action='store_true',
+                    help='wrap theta value in [0, 2pi)')
+parser.add_argument('--fingertip', action='store_true',
+                    help='add fingertip xy location to state')
 
 args = parser.parse_args()
 

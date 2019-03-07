@@ -2,16 +2,11 @@
 
 import numpy as np
 import tensorflow as tf
-import gym
-import time
-# from spinup.algos.sac import core
-# from spinup.algos.sac.core import get_vars
 import core
 from core import get_vars
 from spinup.utils.logx import EpochLogger
 
 import reacher_utils
-from experience_buffer import ExperienceBuffer
 
 class ReplayBuffer:
     """
@@ -53,7 +48,7 @@ class ReacherSoftActorCritic:
     def __init__(self, env_fn, reward_fn=[], actor_critic=core.mlp_actor_critic, xid=0, seed=0, max_ep_len=1000,
         gamma=.99, alpha=0.2, lr=1e-3, polyak=0.995, replay_size=int(1e6), 
         ac_kwargs=dict(), logger_kwargs=dict(), normalization_factors=[], learn_reduced=False):
-
+        
         tf.set_random_seed(seed)
         np.random.seed(seed)
 
@@ -165,9 +160,6 @@ class ReacherSoftActorCritic:
 
     def test_agent(self, T, n=10, initial_state=[], store_log=True, deterministic=True, reset=False):
         
-#         p = np.zeros(shape=(tuple(reacher_utils.num_states)))
-#         p_xy = np.zeros(shape=(tuple(reacher_utils.num_states_2d)))
-        
         denom = 0
 
         for j in range(n):
@@ -185,18 +177,7 @@ class ReacherSoftActorCritic:
                 a = self.get_action(o, deterministic)
                 o, r, d, _ = self.test_env.step(a)
                 o = reacher_utils.get_state(self.test_env, o)
-                # self.test_env.render()
-                # time.sleep(1)
 
-                # print("-------")
-                # print(a)
-                # print(o)
-
-#                 tup = tuple(reacher_utils.discretize_state(o, self.normalization_factors))
-#                 p[tup] += 1
-#                 tup_xy = tuple(reacher_utils.discretize_state_2d(o, self.normalization_factors))
-#                 p_xy[tup_xy] += 1
-                
                 r = self.reward(self.test_env, r, o)
                 ep_ret += r
                 ep_len += 1
@@ -207,21 +188,20 @@ class ReacherSoftActorCritic:
 
             if store_log:
                 self.logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
-                
-#         p /= float(denom)
-#         p_xy /= float(denom)
-        
-#         return p, p_xy
+
 
     def test_agent_random(self, T, normalization_factors=[], n=10):
         
         p = np.zeros(shape=(tuple(reacher_utils.num_states)))
-        p_xy = np.zeros(shape=(tuple(reacher_utils.num_states_2d)))
+        p_joint0 = np.zeros(shape=(tuple(reacher_utils.num_states_2d)))
+        p_joint1 = np.zeros(shape=(tuple(reacher_utils.num_states_2d)))
         
         cumulative_states_visited_baseline = 0
         states_visited_baseline = []
-        cumulative_states_visited_xy_baseline = 0
-        states_visited_xy_baseline = []
+        cumulative_states_visited_joint0_baseline = 0
+        states_visited_joint0_baseline = []
+        cumulative_states_visited_joint1_baseline = 0
+        states_visited_joint1_baseline = []
 
         denom = 0
 
@@ -238,12 +218,17 @@ class ReacherSoftActorCritic:
                 if p[tuple(reacher_utils.discretize_state(o, normalization_factors))] == 0:
                     cumulative_states_visited_baseline += 1
                 states_visited_baseline.append(cumulative_states_visited_baseline)
-                if p_xy[tuple(reacher_utils.discretize_state_2d(o, normalization_factors))]  == 0:
-                    cumulative_states_visited_xy_baseline += 1
-                states_visited_xy_baseline.append(cumulative_states_visited_xy_baseline)
+                if p_joint0[tuple(reacher_utils.discretize_state_2d(o, reacher_utils.joint0th, reacher_utils.joint0v, normalization_factors))]  == 0:
+                    cumulative_states_visited_joint0_baseline += 1
+                states_visited_joint0_baseline.append(cumulative_states_visited_joint0_baseline)
+                
+                if p_joint1[tuple(reacher_utils.discretize_state_2d(o, reacher_utils.joint1th, reacher_utils.joint1v, normalization_factors))]  == 0:
+                    cumulative_states_visited_joint1_baseline += 1
+                states_visited_joint1_baseline.append(cumulative_states_visited_joint1_baseline)
                 
                 p[tuple(reacher_utils.discretize_state(o, normalization_factors))] += 1
-                p_xy[tuple(reacher_utils.discretize_state_2d(o, normalization_factors))] += 1
+                p_joint0[tuple(reacher_utils.discretize_state_2d(o, reacher_utils.joint0th, reacher_utils.joint0v, normalization_factors))] += 1
+                p_joint1[tuple(reacher_utils.discretize_state_2d(o, reacher_utils.joint1th, reacher_utils.joint1v, normalization_factors))] += 1
                 
                 denom += 1
                 ep_len += 1
@@ -253,9 +238,10 @@ class ReacherSoftActorCritic:
                     d = False
         
         p /= float(denom)
-        p_xy /= float(denom)
+        p_joint0 /= float(denom)
+        p_joint1 /= float(denom)
         
-        return p, p_xy, states_visited_baseline, states_visited_xy_baseline
+        return p, p_joint0, p_joint1, states_visited_baseline, states_visited_joint0_baseline, states_visited_joint1_baseline
 
     def soft_actor_critic(self, initial_state=[], steps_per_epoch=5000, epochs=100,
             batch_size=100, start_steps=10000, save_freq=1):
@@ -272,7 +258,6 @@ class ReacherSoftActorCritic:
             self.logger.setup_tf_saver(self.sess, inputs={'x': self.x_ph, 'a': self.a_ph}, 
                                         outputs={'mu': self.mu, 'pi': self.pi, 'q1': self.q1, 'q2': self.q2, 'v': self.v})
 
-            start_time = time.time()
             o, r, d, ep_ret, ep_len = self.env.reset(), 0, False, 0, 0
             if len(initial_state) > 0:
                 qpos = initial_state[:len(reacher_utils.qpos)]
@@ -378,33 +363,33 @@ class ReacherSoftActorCritic:
                     self.logger.dump_tabular()
 
 
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='HalfCheetah-v2')
-    parser.add_argument('--hid', type=int, default=300)
-    parser.add_argument('--l', type=int, default=1)
-    parser.add_argument('--gamma', type=float, default=0.99)
-    parser.add_argument('--seed', '-s', type=int, default=0)
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--exp_name', type=str, default='sac')
-    args = parser.parse_args()
+# if __name__ == '__main__':
+#     import argparse
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--env', type=str, default='HalfCheetah-v2')
+#     parser.add_argument('--hid', type=int, default=300)
+#     parser.add_argument('--l', type=int, default=1)
+#     parser.add_argument('--gamma', type=float, default=0.99)
+#     parser.add_argument('--seed', '-s', type=int, default=0)
+#     parser.add_argument('--epochs', type=int, default=50)
+#     parser.add_argument('--exp_name', type=str, default='sac')
+#     args = parser.parse_args()
 
-    from spinup.utils.run_utils import setup_logger_kwargs
-    logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
+#     from spinup.utils.run_utils import setup_logger_kwargs
+#     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
-    sac1 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
-        actor_critic=core.mlp_actor_critic, 
-        seed=args.seed, gamma=args.gamma, 
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
-        logger_kwargs=logger_kwargs)
-    sac1.soft_actor_critic(epochs=args.epochs)
+#     sac1 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
+#         actor_critic=core.mlp_actor_critic, 
+#         seed=args.seed, gamma=args.gamma, 
+#         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
+#         logger_kwargs=logger_kwargs)
+#     sac1.soft_actor_critic(epochs=args.epochs)
 
-    print("---------- SAC 2 ---------")
+#     print("---------- SAC 2 ---------")
 
-    sac2 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
-        actor_critic=core.mlp_actor_critic, 
-        seed=args.seed, gamma=args.gamma, 
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
-        logger_kwargs=logger_kwargs)
-    sac2.soft_actor_critic(epochs=args.epochs)
+#     sac2 = ReacherSoftActorCritic(lambda : gym.make(args.env), 
+#         actor_critic=core.mlp_actor_critic, 
+#         seed=args.seed, gamma=args.gamma, 
+#         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
+#         logger_kwargs=logger_kwargs)
+#     sac2.soft_actor_critic(epochs=args.epochs)
